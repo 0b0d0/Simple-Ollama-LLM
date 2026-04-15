@@ -12,7 +12,7 @@ import sys
 
 def signal_handler(sig, frame): #when ctrl + c is used it exists
     global serverSocket
-    print("\n✓ Shutting down...")
+    print("\n? Shutting down...")
     serverSocket.close()
 
 def generateResponse(prompt):
@@ -24,6 +24,7 @@ def generateResponse(prompt):
 
 def handleClient(clientSocket, addr): #handles on or more clients
     print("Got a connection from %s" % str(addr))
+    clientSocket.send("Connection established".encode())
     while True:
         data = clientSocket.recv(1024)
         if not data:
@@ -62,13 +63,16 @@ def main():
     serverSocket.bind((host,port))
 
     # queue up to 5 requests
-    serverSocket.listen(5)
+    serverSocket.listen(5) #listens
 
     #this starts ollama
     subprocess.Popen(['ollama', 'serve'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(3) # 3 second sleep
 
-    print("Server started !")
+    if serverSocket.fileno()==-1:
+        print("Server failed")
+    else:
+        print("Server started !")
 
     while True: #listens forever
         # accept a connection
