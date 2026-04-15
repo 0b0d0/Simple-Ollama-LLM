@@ -19,29 +19,31 @@ class client:
 
 
     def wait_For_Server(self): #checks if server is up
-        while True:
-            try:
-                test_socket = socket.socket() #temporary socket
-                test_socket.connect((self.host, self.port))
-                test_socket.close()
-                return # exit out of loop if server is up
-            except ConnectionRefusedError:
-                print("Waiting for server...")
-                time.sleep(1)
+        try:
+            self.connect()
+            threading.Thread(target=self.receiveMessage, daemon=True).start()# start message listener thread
 
+        except ConnectionRefusedError: # when connection is down
+            self.chat_box.config(state='normal')
+            self.chat_box.insert('end', "\nWaiting for server or reconnect...\n")
+            self.chat_box.config(state='disabled')
+            #print("Waiting for server...")
+            self.root.after(1, self.wait_For_Server) # call function again after x seconds
+
+#Lambda makes the gui calls work
     def receiveMessage(self):
         while self.running:
             try:
                 msg=self.s.recv(1024).decode()
                 if msg: #if there is data
-                    self.chat_box.config(state='normal')  # Enable
+                    self.chat_box.config(state='normal')
                     self.chat_box.insert('end', f"Ollama: {msg}\n")
-                    self.chat_box.config(state='disabled')  # Disable
+                    self.chat_box.config(state='disabled')
                     self.chat_box.see('end')
             except OSError:  #displays information if connection breaks
                 # Socket error or forced disconnect
                 self.running = False
-                self.onDisconnect()
+                self.root.after(0, self.onDisconnect)
                 break
 
 
@@ -51,26 +53,32 @@ class client:
         except:
             pass
         self.chat_box.config(state='normal')  # Enable
-        self.chat_box.insert('end', "\n[Disconnected from server]\n")
+        self.chat_box.insert('end', "\n[Disconnected from server]\n")#insert message on chat box
         self.chat_box.config(state='disabled')  # Disable
         self.chat_box.see('end')
 
     def send_message(self):
         message = self.input_box.get("1.0", "end-1c")  # get text in input box
-        if message.strip():
+        if message.strip(): # if it contains data
             self.chat_box.config(state='normal')
-            self.chat_box.insert('end', f"You: {message}\n")
+            self.chat_box.insert('end', f"You: {message}\n")#insert message on chat box
             self.chat_box.config(state='disabled')
 
             try:
                 self.s.send(message.encode())
             except OSError: #displays information if server disconnects
                 self.running = False
-                self.onDisconnect()
-
+                self.root.after(0, self.onDisconnect)#call function on main thread
             self.input_box.delete("1.0", "end")
 
+        elif message == "":  # if empty
+            self.chat_box.config(state='normal')
+            self.chat_box.insert('end', f"You: There is no data \n")  # insert message on chat box
+            self.chat_box.config(state='disabled')
 
+
+
+    #padx and pady move the shapes
     def setGui(self):
         self.root = tk.Tk()
         self.root.title("Chat Box")
@@ -83,7 +91,7 @@ class client:
         chat_frame=ttk.Frame(self.root)
         chat_frame.pack(fill="both", expand=True, padx=10, pady=10)
         #displays chat box
-        self.chat_box = tk.Text(self.root, state='disabled')
+        self.chat_box = tk.Text(self.root, state='disabled',width=50,height=50)
         self.chat_box.pack(fill="both", expand=True, padx=10, pady=10)
 
     #input frame
@@ -97,17 +105,21 @@ class client:
         button_frame = ttk.Frame(self.root)
         button_frame.pack(pady=(0, 10))
         #displays button
-        self.send_button = ttk.Button(self.root, text="Send", command=self.send_message)
+        self.send_button = ttk.Button(button_frame, text="Send", command=self.send_message)
         self.send_button.pack()
 
-        #start listening thread
-        threading.Thread(target=self.receiveMessage,daemon=True).start()
+        self.send_button2 = ttk.Button(button_frame, text="Upload Image - Not done yet", command=self.send_message)
+        self.send_button2.pack(side="left",padx=10, pady=( 0, 0 ))
+
+        # Schedule wait_For_Server to run after GUI is ready
+        self.root.after(100, self.wait_For_Server)
         self.root.mainloop()
 
 client=client()
-client.wait_For_Server() # checks if the server is down
-client.connect() # connects to server
 client.setGui() # displays gui
+client.wait_For_Server()  # checks if the server is down
+
+
 
 
 
