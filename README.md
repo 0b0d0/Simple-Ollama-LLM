@@ -9,6 +9,7 @@
 
 ## Requirements for ollama to work
     - One must download ollama from the official website: https://ollama.com/download
+    - This is because the GUI communicates with Ollama server to run the model locally on the machine
    
 
 
