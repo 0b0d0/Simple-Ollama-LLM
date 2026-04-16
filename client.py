@@ -14,6 +14,7 @@ class client:
         self.running=True
 
     def connect(self): #connects
+        #self.s value also changes when the function is called
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # communication socket
         self.s.connect((self.host, self.port))
 
@@ -28,7 +29,7 @@ class client:
             self.chat_box.insert('end', "\nWaiting for server or reconnect...\n")
             self.chat_box.config(state='disabled')
             #print("Waiting for server...")
-            self.root.after(1, self.wait_For_Server) # call function again after x seconds
+            self.root.after(3000, self.wait_For_Server) # call function again after 3 seconds
 
 #Lambda makes the gui calls work
     def receiveMessage(self):
@@ -84,32 +85,35 @@ class client:
         self.root.title("Chat Box")
         self.root.geometry("500x450")
 
-        style=ttk.Style()
-        style.theme_use("clam")#modern theme
+        # Set minimum window size here
+        self.root.minsize(400, 300)
 
-    #chat frame
-        chat_frame=ttk.Frame(self.root)
+        style = ttk.Style()
+        style.theme_use("clam")  # modern theme
+
+        # chat frame
+        chat_frame = ttk.Frame(self.root)
         chat_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        #displays chat box
-        self.chat_box = tk.Text(self.root, state='disabled',width=50,height=50)
-        self.chat_box.pack(fill="both", expand=True, padx=10, pady=10)
+        # displays chat box
+        self.chat_box = tk.Text(chat_frame, state='disabled', wrap="word")
+        self.chat_box.pack(fill="both", expand=True)
 
-    #input frame
+        # input frame
         input_frame = ttk.Frame(self.root)
         input_frame.pack(fill="x", padx=10, pady=(0, 10))
-        #displays input
-        self.input_box = tk.Text(self.root, height=3, bd=1, relief="solid")
-        self.input_box.pack(fill="x", padx=10, pady=(0, 10))
+        # displays input
+        self.input_box = tk.Text(input_frame, height=3, bd=1, relief="solid")
+        self.input_box.pack(fill="x")
 
-    #Button frame
+        # Button frame
         button_frame = ttk.Frame(self.root)
         button_frame.pack(pady=(0, 10))
-        #displays button
+        # displays button
         self.send_button = ttk.Button(button_frame, text="Send", command=self.send_message)
-        self.send_button.pack()
+        self.send_button.pack(side="left", padx=5)
 
-        self.send_button2 = ttk.Button(button_frame, text="Upload Image - Not done yet", command=self.send_message)
-        self.send_button2.pack(side="left",padx=10, pady=( 0, 0 ))
+        self.send_button2 = ttk.Button(button_frame, text="Upload Image - Not done yet")
+        self.send_button2.pack(side="left", padx=5)
 
         # Schedule wait_For_Server to run after GUI is ready
         self.root.after(100, self.wait_For_Server)
