@@ -4,6 +4,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk # modern themed widgets
 import time
+#encode command converts data into bytes and decode does the opposite
 
 
 class client:
@@ -35,7 +36,7 @@ class client:
     def receiveMessage(self):
         while self.running:
             try:
-                msg=self.s.recv(1024).decode()
+                msg=self.s.recv(16384).decode()
                 if msg: #if there is data
                     self.chat_box.config(state='normal')
                     self.chat_box.insert('end', f"Ollama: {msg}\n")
@@ -58,24 +59,27 @@ class client:
         self.chat_box.config(state='disabled')  # Disable
         self.chat_box.see('end')
 
-    def send_message(self):
+    def send_message(self,event=None):
         message = self.input_box.get("1.0", "end-1c")  # get text in input box
-        if message.strip(): # if it contains data
-            self.chat_box.config(state='normal')
-            self.chat_box.insert('end', f"You: {message}\n")#insert message on chat box
-            self.chat_box.config(state='disabled')
+        if isinstance(message,str): #if it is a string
+            if message.strip(): # removes whitespace
+                self.chat_box.config(state='normal')
+                self.chat_box.insert('end', f"You: {message}\n")#insert message on chat box
+                self.chat_box.config(state='disabled')
 
-            try:
-                self.s.send(message.encode())
-            except OSError: #displays information if server disconnects
-                self.running = False
-                self.root.after(0, self.onDisconnect)#call function on main thread
-            self.input_box.delete("1.0", "end")
+                try:
+                    self.s.send(message.encode())#convert data into bytes
+                except OSError: #displays information if server disconnects
+                    self.running = False
+                    self.root.after(0, self.onDisconnect)#call function on main thread
+                self.input_box.delete("1.0", "end")
 
-        elif message == "":  # if empty
-            self.chat_box.config(state='normal')
-            self.chat_box.insert('end', f"You: There is no data \n")  # insert message on chat box
-            self.chat_box.config(state='disabled')
+            elif message == "":  # if empty
+                self.chat_box.config(state='normal')
+                self.chat_box.insert('end', f"You: There is no data \n")  # insert message on chat box
+                self.chat_box.config(state='disabled')
+
+        return "break" #stops enter adding new line
 
 
 
@@ -104,6 +108,7 @@ class client:
         # displays input
         self.input_box = tk.Text(input_frame, height=3, bd=1, relief="solid")
         self.input_box.pack(fill="x")
+        self.input_box.bind("<Return>",self.send_message)#makes enter key event work
 
         # Button frame
         button_frame = ttk.Frame(self.root)
