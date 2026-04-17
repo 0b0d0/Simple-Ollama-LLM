@@ -9,6 +9,7 @@ global serverSocket #can be used anywhere
 import signal
 import sys
 
+#encode command converts data into bytes and decode does the opposite
 
 def signal_handler(sig, frame): #when ctrl + c is used it exists
     global serverSocket
@@ -25,11 +26,12 @@ def generateResponse(prompt):
 def handleClient(clientSocket, addr): #handles on or more clients
     print("Got a connection from %s" % str(addr))
     clientSocket.send("Connection established".encode())
-    while True:
-        data = clientSocket.recv(1024)
-        if not data:
+    while True: #in a loop forever waiting for bytes which in the form of messages from the client
+        data = clientSocket.recv(16384)
+        if not data: #if client sent 0 bytes
             break
-        print("Received: ", data.decode())
+        #if bytes were sent
+        print("Received: ", data.decode())#convert from bytes to original data
         userInput = data.decode()
         clientSocket.send("Generating response ...".encode())
         ai_response = generateResponse(userInput)
@@ -44,6 +46,20 @@ def signal_handler(sig, frame):
     except:
         pass
     sys.exit(0)
+
+def connect_to_ollama(): #runs command to communicate with ollama server and to get model
+    subprocess.Popen(['ollama', 'serve'],
+                     stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL)
+    #pause execution for a bit
+    time.sleep(3)
+
+    #pull Phi-3 model
+    subprocess.run(
+        ['ollama','pull','phi3'],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
 
 
 def main():
@@ -65,9 +81,8 @@ def main():
     # queue up to 5 requests
     serverSocket.listen(5) #listens
 
-    #this starts ollama
-    subprocess.Popen(['ollama', 'serve'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    time.sleep(3) # 3 second sleep
+    #this starts ollama and makes a thread to handle multiple clients
+    threading.Thread(target=connect_to_ollama, daemon=True).start()
 
     if serverSocket.fileno()==-1:
         print("Server failed")
