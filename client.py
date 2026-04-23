@@ -32,21 +32,56 @@ class client:
             #print("Waiting for server...")
             self.root.after(3000, self.wait_For_Server) # call function again after 3 seconds
 
-#Lambda makes the gui calls work
+    def addMessage(self,brand,msg):
+        self.chat_box.config(state='normal')
+        self.chat_box.insert('end', f"{brand} {msg}\n")
+        self.chat_box.config(state='disabled')
+
+    def stopAnimation(self):
+        self.animating = False
+
+    def startAnimation(self):
+        self.animating = True
+        frames = ["|", "/", "-", "\\"]
+        self.animation_index = 0
+
+        #dds first animation line once
+        self.addMessage("Ollama:", f"Generating {frames[0]}")
+
+        def animate():
+            if not self.animating: # if false
+                return #exits out loop
+            frame = frames[self.animation_index]
+            self.animation_index = (self.animation_index + 1) % len(frames)
+            # --- overwrite the last line directly ---
+            self.chat_box.config(state='normal')
+            self.chat_box.delete("end-2l", "end-1c")  # delete last line
+            self.chat_box.insert("end", f"Ollama: Generating {frame}\n")
+            self.chat_box.config(state='disabled')
+            self.chat_box.see("end")
+            # ----------------------------------------
+
+            self.root.after(150, animate)#repeats function every x seconds
+
+        animate()
+
+    #Lambda makes the gui calls work
     def receiveMessage(self):
         while self.running:
             try:
-                msg=self.s.recv(16384).decode()
+                msg=self.s.recv(16384).decode() # get message
                 if msg: #if there is data
-                    self.chat_box.config(state='normal')
-                    self.chat_box.insert('end', f"Ollama: {msg}\n")
-                    self.chat_box.config(state='disabled')
-                    self.chat_box.see('end')
+                    #check if animation is still running
+                    if hasattr(self,"animating") and self.animating:
+                        self.stopAnimation() #stop start animation function
+                    self.addMessage("Ollama:",msg)
+
             except OSError:  #displays information if connection breaks
                 # Socket error or forced disconnect
                 self.running = False
                 self.root.after(0, self.onDisconnect)
                 break
+
 
 
     def onDisconnect(self):
@@ -69,6 +104,7 @@ class client:
 
                 try:
                     self.s.send(message.encode())#convert data into bytes
+                    self.startAnimation()#start animation
                 except OSError: #displays information if server disconnects
                     self.running = False
                     self.root.after(0, self.onDisconnect)#call function on main thread
@@ -80,6 +116,7 @@ class client:
                 self.chat_box.config(state='disabled')
 
         return "break" #stops enter adding new line
+
 
 
 
