@@ -17,15 +17,28 @@ def signal_handler(sig, frame): #when ctrl + c is used it exists
     serverSocket.close()
 
 def generateResponse(prompt):
-    response=ollama.chat( #talks to the ollama server
-        model='phi3',
-        messages = [{'role': 'user', 'content': prompt}]
-    )
-    return response['message']['content'] # return response
+    if not hasattr(generateResponse,"busy"): #checks if function is busy
+        generateResponse.busy = False
+        # If already generating, return a busy message
+    if generateResponse.busy: #if it is false
+        return "Server is already generating a response, please wait." # returns this if true
+
+    # Mark as busy
+    generateResponse.busy = True
+    try:
+        response=ollama.chat( #talks to the ollama server
+            model='phi3',
+            messages = [{'role': 'user', 'content': prompt}]
+        )
+        return response['message']['content'] # return response
+    finally: #set to false agin to prevenTS GETTING STUCK IN BUSY MODE
+        generateResponse.busy=False
 
 def handleClient(clientSocket, addr): #handles on or more clients
     print("Got a connection from %s" % str(addr))
     clientSocket.send("Connection established".encode())
+
+
     while True: #in a loop forever waiting for bytes which in the form of messages from the client
         data = clientSocket.recv(16384)
         if not data: #if client sent 0 bytes
@@ -33,9 +46,12 @@ def handleClient(clientSocket, addr): #handles on or more clients
         #if bytes were sent
         print("Received: ", data.decode())#convert from bytes to original data
         userInput = data.decode()
-        clientSocket.send("Generating response ...".encode())
-        ai_response = generateResponse(userInput)
-        clientSocket.send(ai_response.encode())
+
+        # Run AI generation in a background thread
+        threading.Thread(
+            target=lambda: clientSocket.send(generateResponse(userInput).encode()),
+            daemon=True
+        ).start()
 
 
 def signal_handler(sig, frame):
@@ -81,7 +97,7 @@ def main():
     # queue up to 5 requests
     serverSocket.listen(5) #listens
 
-    #this starts ollama and makes a thread to handle multiple clients
+    #this starts ollama and makes a thread so it can be done by more than one user
     threading.Thread(target=connect_to_ollama, daemon=True).start()
 
     if serverSocket.fileno()==-1:
